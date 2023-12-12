@@ -176,22 +176,22 @@ private:
       Value _8 = i32_val(8);
       Value _16 = i32_val(16);
       if (mmaLayout.isAmpere() || mmaLayout.isHopper()) {
-        multiDimWarpId[0] =
-            urem(multiDimWarpId[0],
-                 i32_val(ceil<unsigned>(shapePerCTA[0], instrShape[0])));
         multiDimWarpId[1] =
             urem(multiDimWarpId[1],
                  i32_val(ceil<unsigned>(shapePerCTA[1], instrShape[1])));
+        multiDimWarpId[2] =
+            urem(multiDimWarpId[2],
+                 i32_val(ceil<unsigned>(shapePerCTA[2], instrShape[2])));
 
         Value mmaGrpId = udiv(laneId, _4);
         Value mmaGrpIdP8 = add(mmaGrpId, _8);
         Value mmaThreadIdInGrp = urem(laneId, _4);
         Value mmaThreadIdInGrpM2 = mul(mmaThreadIdInGrp, _2);
         Value mmaThreadIdInGrpM2P1 = add(mmaThreadIdInGrpM2, _1);
-        Value rowWarpOffset = mul(multiDimWarpId[0], i32_val(instrShape[0]));
+        Value rowWarpOffset = mul(multiDimWarpId[1], i32_val(instrShape[1]));
         mmaRowIdx[0] = add(mmaGrpId, rowWarpOffset);
         mmaRowIdx[1] = add(mmaGrpIdP8, rowWarpOffset);
-        Value colWarpOffset = mul(multiDimWarpId[1], i32_val(instrShape[1]));
+        Value colWarpOffset = mul(multiDimWarpId[2], i32_val(instrShape[2]));
         mmaColIdx[0] = add(mmaThreadIdInGrpM2, colWarpOffset);
         mmaColIdx[1] = add(mmaThreadIdInGrpM2P1, colWarpOffset);
       } else if (mmaLayout.isVolta()) {
@@ -200,7 +200,7 @@ private:
         llvm_unreachable("Unexpected MMALayout version");
       }
 
-      assert(rank == 2);
+      // assert(rank == 2);
       SmallVector<Value> multiDimOffset(rank);
       if (mmaLayout.isHopper()) {
         unsigned elemIdRem4 = elemId % 4;
@@ -215,14 +215,15 @@ private:
             add(multiDimOffset[1],
                 i32_val(multiDimCTAInRepId[1] * shapePerCTATile[1]));
       } else if (mmaLayout.isAmpere()) {
-        multiDimOffset[0] = elemId < 2 ? mmaRowIdx[0] : mmaRowIdx[1];
-        multiDimOffset[1] = elemId % 2 == 0 ? mmaColIdx[0] : mmaColIdx[1];
-        multiDimOffset[0] =
-            add(multiDimOffset[0],
-                i32_val(multiDimCTAInRepId[0] * shapePerCTATile[0]));
+        multiDimOffset[0] = multiDimWarpId[0];
+        multiDimOffset[1] = elemId < 2 ? mmaRowIdx[0] : mmaRowIdx[1];
+        multiDimOffset[2] = elemId % 2 == 0 ? mmaColIdx[0] : mmaColIdx[1];
         multiDimOffset[1] =
             add(multiDimOffset[1],
                 i32_val(multiDimCTAInRepId[1] * shapePerCTATile[1]));
+        multiDimOffset[2] =
+            add(multiDimOffset[2],
+                i32_val(multiDimCTAInRepId[2] * shapePerCTATile[2]));
       } else if (mmaLayout.isVolta()) {
         auto [isARow, isBRow, isAVec4, isBVec4, _] =
             mmaLayout.decodeVoltaLayoutStates();
@@ -246,6 +247,9 @@ private:
                            SmallVector<int64_t> shapePerCTA) const {
     unsigned rank = shape.size();
     SmallVector<Value> multiDimOffsetWrapped(rank);
+    assert(shapePerCTATile.size() == rank);
+    assert(shapePerCTA.size() == rank);
+    assert(multiDimOffset.size() == rank);
     for (unsigned d = 0; d < rank; ++d) {
       if (shapePerCTATile[d] > shapePerCTA[d])
         multiDimOffsetWrapped[d] = urem(multiDimOffset[d], i32_val(shape[d]));
@@ -738,8 +742,8 @@ private:
     auto srcShape = srcTy.getShape();
     auto dstTy = dst.getType().cast<RankedTensorType>();
     auto dstShapePerCTA = triton::gpu::getShapePerCTA(dstTy);
-    assert(srcShape.size() == 2 &&
-           "Unexpected rank of ConvertLayout(blocked->shared)");
+    // assert(srcShape.size() == 2 &&
+    //        "Unexpected rank of ConvertLayout(blocked->shared)");
     auto srcLayout = srcTy.getEncoding();
     auto dstSharedLayout = dstTy.getEncoding().cast<SharedEncodingAttr>();
     auto inOrd = getOrder(srcLayout);

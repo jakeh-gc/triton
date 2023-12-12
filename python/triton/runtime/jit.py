@@ -611,9 +611,10 @@ class JITFunction(KernelInterface[T]):
     def cache_key(self):
         # TODO : hash should be attribute of `self`
         if self.hash is None:
-            dependencies_finder = DependenciesFinder(globals=self.__globals__, src=self.src)
-            dependencies_finder.visit(self.parse())
-            self.hash = dependencies_finder.ret + str(self.starting_line_number)
+            self.hash = 'abc'
+            # dependencies_finder = DependenciesFinder(globals=self.__globals__, src=self.src)
+            # dependencies_finder.visit(self.parse())
+            # self.hash = dependencies_finder.ret + str(self.starting_line_number)
         return self.hash
 
     def warmup(self, *args, **kwargs):

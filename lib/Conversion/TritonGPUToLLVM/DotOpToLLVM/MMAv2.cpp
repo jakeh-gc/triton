@@ -9,6 +9,11 @@ using ::mlir::triton::gpu::MmaEncodingAttr;
 
 using ValueTableV2 = std::map<std::pair<unsigned, unsigned>, Value>;
 
+Value getThreadId(ConversionPatternRewriter &rewriter, Location loc) {
+  Value tid =
+      rewriter.create<::mlir::gpu::ThreadIdOp>(loc, ::mlir::gpu::Dimension::x);
+  return rewriter.create<arith::IndexCastOp>(loc, i32_ty, tid);
+}
 Value loadC(Value tensor, Value llTensor,
             TritonGPUToLLVMTypeConverter *typeConverter, Location loc,
             ConversionPatternRewriter &rewriter) {

@@ -71,9 +71,11 @@ warpsPerTileV2(tt::DotOp dotOp, const ArrayRef<int64_t> shape, int numWarps) {
       return {1, (unsigned)numWarps};
     }
   }
-
-  SmallVector<unsigned, 2> ret = {1, 1};
-  SmallVector<int64_t, 2> shapePerWarp = {16, 8};
+  auto rank = shape.size();
+  SmallVector<unsigned> ret(rank, 1);
+  SmallVector<int64_t> shapePerWarp(rank, 1);
+  shapePerWarp[rank - 1] = 8;
+  shapePerWarp[rank - 2] = 16;
   // TODO (@daadaada): double-check.
   // original logic in
   // https://github.com/openai/triton/blob/master/lib/codegen/analysis/layout.cc#L252

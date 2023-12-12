@@ -48,11 +48,22 @@ public:
              dstDotOp.getParent() == srcMmaEncoding))
           return;
       }
+      auto srcOrder = triton::gpu::getOrder(srcEncoding);
+      SmallVector<unsigned> sharedOrder;
+      if (srcOrder.size() < 3) {
+        sharedOrder = srcOrder;
+      } else {
+        for (auto o : srcOrder) {
+          if (o != 0)
+            sharedOrder.emplace_back(o);
+        }
+        sharedOrder.emplace_back(0);
+      }
+
       auto tmpType = RankedTensorType::get(
           dstType.getShape(), dstType.getElementType(),
           triton::gpu::SharedEncodingAttr::get(
-              mod.getContext(), dstDotOp, srcType.getShape(),
-              triton::gpu::getOrder(srcEncoding),
+              mod.getContext(), dstDotOp, srcType.getShape(), sharedOrder,
               triton::gpu::getCTALayout(srcEncoding),
               srcType.getElementType()));
       auto tmp = builder.create<triton::gpu::ConvertLayoutOp>(

@@ -2,8 +2,6 @@
 #include "Utility.h"
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 
-namespace {
-
 using namespace mlir;
 using namespace mlir::triton;
 
@@ -831,7 +829,16 @@ struct AsyncBulkCommitGroupOpConversion
   }
 };
 
-} // namespace
+namespace mlir {
+namespace LLVM {
+
+void vprintf(StringRef msg, ValueRange args,
+             ConversionPatternRewriter &rewriter) {
+  PrintOpConversion::llPrintf(msg, args, rewriter);
+}
+
+} // namespace LLVM
+} // namespace mlir
 
 namespace mlir::triton {
 
