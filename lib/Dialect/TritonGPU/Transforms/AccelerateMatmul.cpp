@@ -65,11 +65,12 @@ warpsPerTileV2(tt::DotOp dotOp, const ArrayRef<int64_t> shape, int numWarps) {
     }
   }
   if (hasChainedDot) {
-    if (shape[0] >= shape[1]) {
-      return {(unsigned)numWarps, 1};
-    } else {
-      return {1, (unsigned)numWarps};
-    }
+    return {(unsigned)numWarps, 1, 1};
+    // if (shape[1] >= shape[2]) {
+    //   return {1, (unsigned)numWarps, 1};
+    // } else {
+    //   return {1, 1, (unsigned)numWarps};
+    // }
   }
   auto rank = shape.size();
   SmallVector<unsigned> ret(rank, 1);

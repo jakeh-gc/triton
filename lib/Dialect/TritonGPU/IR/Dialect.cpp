@@ -94,7 +94,7 @@ SmallVector<unsigned> getThreadsPerWarp(Attribute layout) {
     if (mmaLayout.isVolta())
       return {4, 8};
     if (mmaLayout.isAmpere())
-      return {8, 4};
+      return {1, 8, 4};
     if (mmaLayout.isHopper())
       return {8, 4};
   }
@@ -195,7 +195,7 @@ SmallVector<unsigned> getSizePerThread(Attribute layout) {
     return sizePerThread;
   } else if (auto mmaLayout = layout.dyn_cast<MmaEncodingAttr>()) {
     if (mmaLayout.isAmpere()) {
-      return {2, 2};
+      return {1, 2, 2};
     } else if (mmaLayout.isVolta()) {
       return {1, 2};
     } else if (mmaLayout.isHopper()) {

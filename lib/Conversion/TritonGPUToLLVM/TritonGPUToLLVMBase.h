@@ -1049,14 +1049,14 @@ private:
     auto shapePerCTA = getShapePerCTA(mmaLayout, shape);
     SmallVector<SmallVector<unsigned>> ret;
 
-    for (unsigned i = 0; i < shapePerCTA[0];
-         i += getShapePerCTATile(mmaLayout)[0]) {
-      for (unsigned j = 0; j < shapePerCTA[1];
-           j += getShapePerCTATile(mmaLayout)[1]) {
-        ret.push_back({i, j});
-        ret.push_back({i, j + 1});
-        ret.push_back({i + 8, j});
-        ret.push_back({i + 8, j + 1});
+    for (unsigned i = 0; i < shapePerCTA[1];
+         i += getShapePerCTATile(mmaLayout)[1]) {
+      for (unsigned j = 0; j < shapePerCTA[2];
+           j += getShapePerCTATile(mmaLayout)[2]) {
+        ret.push_back({0, i, j});
+        ret.push_back({0, i, j + 1});
+        ret.push_back({0, i + 8, j});
+        ret.push_back({0, i + 8, j + 1});
       }
     }
     return ret;
@@ -1067,11 +1067,12 @@ private:
       const MmaEncodingAttr &mmaLayout, RankedTensorType type) const {
     auto shape = type.getShape();
     auto _warpsPerCTA = mmaLayout.getWarpsPerCTA();
-    assert(_warpsPerCTA.size() == 2);
+    // assert(_warpsPerCTA.size() == 2);
     auto order = triton::gpu::getOrder(mmaLayout);
     ArrayRef<unsigned int> instrShape = mmaLayout.getInstrShape();
     SmallVector<Value> warpsPerCTA = {i32_val(_warpsPerCTA[0]),
-                                      i32_val(_warpsPerCTA[1])};
+                                      i32_val(_warpsPerCTA[1]),
+                                      i32_val(_warpsPerCTA[2])};
     auto shapePerCTA = getShapePerCTA(mmaLayout, shape);
 
     Value threadId = getThreadId(rewriter, loc);
@@ -1079,22 +1080,22 @@ private:
     Value laneId = urem(threadId, warpSize);
     Value warpId = udiv(threadId, warpSize);
 
-    uint32_t repM = (_warpsPerCTA[0] * instrShape[0]) / shapePerCTA[0];
-    uint32_t repN = (_warpsPerCTA[1] * instrShape[1]) / shapePerCTA[1];
+    uint32_t repM = (_warpsPerCTA[1] * instrShape[1]) / shapePerCTA[1];
+    uint32_t repN = (_warpsPerCTA[2] * instrShape[2]) / shapePerCTA[2];
 
     uint32_t warpsM;
     if (repM > 1)
-      warpsM = _warpsPerCTA[0] / repM;
+      warpsM = _warpsPerCTA[1] / repM;
     else
-      warpsM = shape[0] / instrShape[0];
+      warpsM = shape[1] / instrShape[1];
 
     uint32_t warpsN;
     if (repN > 1)
-      warpsN = _warpsPerCTA[1] / repN;
+      warpsN = _warpsPerCTA[2] / repN;
     else
-      warpsN = shape[1] / instrShape[1];
+      warpsN = shape[2] / instrShape[2];
 
-    SmallVector<Value> multiDimWarpId(2);
+    SmallVector<Value> multiDimWarpId(3);
     if (mmaLayout.isHopper()) {
       // TODO[goostavz]: the tiling order from CTA->warp level is different for
       // MMAv2/3. This is a workaround since we don't explicitly have warpGrp
@@ -1106,15 +1107,16 @@ private:
     } else {
       multiDimWarpId = delinearize(rewriter, loc, warpId, _warpsPerCTA, order);
     }
-    Value warpId0 = urem(multiDimWarpId[0], i32_val(warpsM));
-    Value warpId1 = urem(multiDimWarpId[1], i32_val(warpsN));
+    Value warpId1 = urem(multiDimWarpId[1], i32_val(warpsM));
+    Value warpId2 = urem(multiDimWarpId[2], i32_val(warpsN));
 
-    Value offWarp0 = mul(warpId0, i32_val(instrShape[0]));
     Value offWarp1 = mul(warpId1, i32_val(instrShape[1]));
+    Value offWarp2 = mul(warpId2, i32_val(instrShape[2]));
 
-    SmallVector<Value> multiDimBase(2);
-    multiDimBase[0] = add(udiv(laneId, i32_val(4)), offWarp0);
-    multiDimBase[1] = add(mul(i32_val(2), urem(laneId, i32_val(4))), offWarp1);
+    SmallVector<Value> multiDimBase(3);
+    multiDimBase[0] = multiDimWarpId[0];
+    multiDimBase[1] = add(udiv(laneId, i32_val(4)), offWarp1);
+    multiDimBase[2] = add(mul(i32_val(2), urem(laneId, i32_val(4))), offWarp2);
     return multiDimBase;
   }
 
