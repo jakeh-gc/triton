@@ -124,7 +124,7 @@ def _fwd_kernel(Q, K, V, sm_scale, Out, stride_qm, stride_qk, stride_kn, stride_
 
 
 def test_op():
-    (N_CTX, D_HEAD) = (128, 32)
+    (N_CTX, D_HEAD) = (1024, 64)
     dtype = torch.float16
     torch.manual_seed(20)
     q = torch.empty((N_CTX, D_HEAD), dtype=dtype, device="cuda").normal_(mean=0.0, std=0.5)
@@ -136,9 +136,9 @@ def test_op():
     # p = torch.softmax(p.float(), dim=-1).half()
     # ref_out = torch.matmul(p, v)
 
-    BLOCK_M = 32
-    BLOCK_N = 32
-    BLOCK_K = 32
+    BLOCK_M = 128
+    BLOCK_N = 64
+    BLOCK_K = D_HEAD
     # shape constraints
     Lq, Lk, Lv = q.shape[-1], k.shape[-1], v.shape[-1]
     assert Lq == Lk and Lk == Lv
@@ -146,7 +146,7 @@ def test_op():
     assert Lk in {16, 32, 64, 128}
     o = torch.empty_like(q)
     grid = (triton.cdiv(q.shape[-2], BLOCK_M), 1, 1)
-    num_warps = 2
+    num_warps = 4
     acc = torch.zeros((num_warps, BLOCK_M, BLOCK_K), device="cuda")
     l_i = torch.zeros((num_warps, BLOCK_M), device="cuda")
     m_i = torch.full((num_warps, BLOCK_M), fill_value=float("-inf"), device="cuda")
