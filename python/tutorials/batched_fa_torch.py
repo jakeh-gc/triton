@@ -2,9 +2,10 @@ import torch
 
 torch.manual_seed(10)
 N_CTX = 128
-q = torch.randn((N_CTX, 64))
-k = torch.randn((N_CTX, 64))
-v = torch.randn((N_CTX, 64))
+DMODEL = 64
+q = torch.randn((N_CTX, DMODEL))
+k = torch.randn((N_CTX, DMODEL))
+v = torch.randn((N_CTX, DMODEL))
 
 o1 = torch.matmul(torch.softmax(torch.matmul(q, k.T), dim=-1), v)
 
@@ -13,32 +14,41 @@ BLOCK_N = 32
 n_warps = 2
 q = q * 1.44269504
 q3d = q.unsqueeze(0).expand(n_warps, -1, -1)
-m_i = torch.full((n_warps, N_CTX, 1), fill_value=float("-inf"))
-l_i = torch.zeros((n_warps, N_CTX, 1))
-acc = torch.zeros((n_warps, N_CTX, 64))
+m = torch.full((n_warps, N_CTX, 1), fill_value=float("-inf"))
+l = torch.zeros((n_warps, N_CTX, 1))
+acc = torch.zeros((n_warps, N_CTX, DMODEL))
 for i in range(0, N_CTX, BLOCK_N):
     ki = torch.stack(k[i:i + BLOCK_N].chunk(n_warps, dim=0))
     vi = torch.stack(v[i:i + BLOCK_N].chunk(n_warps, dim=0))
     qk = torch.matmul(q3d, ki.transpose(-1, -2))
-    m_i_new = torch.maximum(m_i, qk.max(dim=-1, keepdim=True)[0])
-    alpha = torch.exp2(m_i - m_i_new)
-    p = torch.exp2(qk - m_i_new)
+    m_new = torch.maximum(m, qk.max(dim=-1, keepdim=True)[0])
+    alpha = torch.exp2(m - m_new)
+    p = torch.exp2(qk - m_new)
     acc *= alpha
     acc += torch.matmul(p, vi)
-    l_i = l_i * alpha + torch.sum(p, dim=-1, keepdim=True)
-    m_i = m_i_new
+    l = l * alpha + torch.sum(p, dim=-1, keepdim=True)
+    m = m_new
 
-o2 = torch.zeros_like(o1)
-m_i_final = torch.full((N_CTX, 1), fill_value=float("-inf"))
-l_i_final = torch.zeros((N_CTX, 1))
-for i in range(n_warps):
-    msi = m_i[i]
-    lsi = l_i[i]
-    osi = acc[i]
-    alphai = torch.exp2(m_i_final - msi)
-    l_i_final = l_i_final * alphai + lsi
-    o2 = o2 * alphai + osi
-    m_i_final = msi
-o2 = o2 / l_i_final
+# acc.shape = (n_warps, N_CTX, DMODEL)
+# l.shape = (n_warps, N_CTX, 1)
+# m.shape = (n_warps, N_CTX, 1)
+o = torch.zeros((N_CTX, DMODEL))
+l_prev = torch.zeros((N_CTX, 1))
+exp_m = torch.exp2(m)
+o = acc * exp_m
+l_prev = l * exp_m
+o = torch.sum(o, dim=0)
+l_prev = torch.sum(l_prev, dim=0)
+o = o / l_prev
+# for i in range(n_warps):
+#     mi = m[i]
+#     li = l[i]
+#     acci = acc[i]
+#     exp_mi = torch.exp2(mi)
+#     l_prev += (li * exp_mi)
+#     o += (acci * exp_mi)
+# l_prev_final = l_prev * torch.exp2(-m[n_warps-1])
+# o = o * torch.exp2(-m[n_warps-1])
+# o = o / l_prev_final
 
-print((o1 - o2).abs().max())
+print((o1 - o).abs().max())
