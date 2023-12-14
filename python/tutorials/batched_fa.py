@@ -6,7 +6,7 @@ import triton.language as tl
 
 @triton.jit
 def _fwd_kernel(Q, K, V, sm_scale, Out, stride_qm, stride_qk, stride_kn, stride_kk, stride_vn, stride_vk, stride_om,
-                stride_on, ACC_ptr, M_ptr, L_ptr, N_CTX: tl.constexpr, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
+                stride_on, N_CTX: tl.constexpr, BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
                 BLOCK_DMODEL: tl.constexpr):
     start_m = tl.program_id(0)
     num_warps: tl.constexpr = tl.extra.cuda.num_warps()
@@ -90,12 +90,9 @@ def test_op():
     o = torch.empty_like(q)
     grid = (triton.cdiv(q.shape[-2], BLOCK_M), 1, 1)
     num_warps = 4
-    acc = torch.zeros((num_warps, BLOCK_M, BLOCK_K), device="cuda")
-    l_i = torch.zeros((num_warps, BLOCK_M), device="cuda")
-    m_i = torch.full((num_warps, BLOCK_M), fill_value=float("-inf"), device="cuda")
     _fwd_kernel[grid](
         q, k, v, sm_scale, o, q.stride(0), q.stride(1), k.stride(0), k.stride(1), v.stride(0), v.stride(1), o.stride(0),
-        o.stride(1), acc, m_i, l_i, q.shape[0],  # q.shape[1],
+        o.stride(1), q.shape[0],  # q.shape[1],
         BLOCK_M=BLOCK_M, BLOCK_N=BLOCK_N, BLOCK_DMODEL=BLOCK_K, num_warps=num_warps, num_stages=1)
 
     print(f"triton_output={o}")
