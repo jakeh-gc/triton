@@ -93,8 +93,14 @@ SmallVector<unsigned> getThreadsPerWarp(Attribute layout) {
   if (auto mmaLayout = layout.dyn_cast<MmaEncodingAttr>()) {
     if (mmaLayout.isVolta())
       return {4, 8};
-    if (mmaLayout.isAmpere())
-      return {1, 8, 4};
+    if (mmaLayout.isAmpere()) {
+      auto rank = mmaLayout.getWarpsPerCTA().size();
+      if (rank == 3)
+        return {1, 8, 4};
+      else
+        return {8, 4};
+    }
+
     if (mmaLayout.isHopper())
       return {8, 4};
   }
