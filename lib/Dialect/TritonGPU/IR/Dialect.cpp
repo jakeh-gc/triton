@@ -201,7 +201,11 @@ SmallVector<unsigned> getSizePerThread(Attribute layout) {
     return sizePerThread;
   } else if (auto mmaLayout = layout.dyn_cast<MmaEncodingAttr>()) {
     if (mmaLayout.isAmpere()) {
-      return {1, 2, 2};
+      auto rank = getOrder(mmaLayout).size();
+      if (rank == 3)
+        return {1, 2, 2};
+      else
+        return {2, 2};
     } else if (mmaLayout.isVolta()) {
       return {1, 2};
     } else if (mmaLayout.isHopper()) {
