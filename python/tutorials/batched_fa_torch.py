@@ -40,15 +40,5 @@ l_prev = l * exp_m
 o = torch.sum(o, dim=0)
 l_prev = torch.sum(l_prev, dim=0)
 o = o / l_prev
-# for i in range(n_warps):
-#     mi = m[i]
-#     li = l[i]
-#     acci = acc[i]
-#     exp_mi = torch.exp2(mi)
-#     l_prev += (li * exp_mi)
-#     o += (acci * exp_mi)
-# l_prev_final = l_prev * torch.exp2(-m[n_warps-1])
-# o = o * torch.exp2(-m[n_warps-1])
-# o = o / l_prev_final
 
 print((o1 - o).abs().max())

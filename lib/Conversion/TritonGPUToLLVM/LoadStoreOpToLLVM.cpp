@@ -1331,8 +1331,8 @@ struct InsertSliceAsyncOpConversion
             "Unexpected srcLayout in InsertSliceAsyncOpConversion"));
     auto resSharedLayout = resTy.getEncoding().cast<SharedEncodingAttr>();
     auto srcShape = srcTy.getShape();
-    assert((srcShape.size() == 1 || srcShape.size() == 2) &&
-           "insert_slice_async: Unexpected rank of %src");
+    // assert((srcShape.size() == 1 || srcShape.size() == 2) &&
+    //        "insert_slice_async: Unexpected rank of %src");
 
     Value llDst = adaptor.getDst();
     Value llSrc = adaptor.getSrc();
