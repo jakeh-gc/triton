@@ -305,6 +305,7 @@ class CompiledKernel:
         self.function = None
 
     def _init_handles(self):
+        return
         if self.module is not None:
             return
         device = driver.get_current_device()
@@ -313,8 +314,8 @@ class CompiledKernel:
         if self.metadata.shared > max_shared:
             raise OutOfResources(self.metadata.shared, max_shared, "shared memory")
         # TODO: n_regs, n_spills should be metadata generated when calling `ptxas`
-        self.module, self.function, self.n_regs, self.n_spills = driver.utils.load_binary(
-            self.name, self.kernel, self.metadata.shared, device)
+        # self.module, self.function, self.n_regs, self.n_spills = driver.utils.load_binary(
+        #     self.name, self.kernel, self.shared, device)
 
     def __getattribute__(self, name):
         if name == 'run':
