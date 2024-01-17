@@ -388,13 +388,39 @@ def TT_TransOp : TT_Op<"trans", [Pure,
                                  DeclareOpInterfaceMethods<InferTypeOpInterface>,
                                  SameOperandsAndResultElementType]> {
 
-    let summary = "transpose a tensor";
+    let summary = "rearrange the dimensions of a tensor";
+    let description = [{
+      For example, given x of shape [1,2,4], transpose(x) with order=[2,0,1]
+      rearranges the tensor to have shape [4,1,2].
 
-    let arguments = (ins TT_Tensor:$src);
+      In the TritonGPU dialect (and probably others), an encoding is for this
+      op's output so it's a nop from the perspective of code generation.
+
+      For example, suppose tensor x has an encoding such that GPU thread [i,j,k]
+      has a register containing element [i,j,k] of the tensor.  Now we transpose
+      x with order [2,1,0], i.e. we reverse the order of its dimensions.  In
+      TritonGPU, we will choose a layout for the output of the transpose so that
+      GPU thread [i,j,k] has element [k,j,i] of transpose(x).  But this is the
+      same element it had before!  All we've done is "rename" the element that
+      thread [i,j,k] has.
+
+      The "real" transpose -- i.e. moving data between GPU threads -- occurs in
+      convertLayout ops that appear before and/or after the operation.
+
+      We do this so that you can chain multiple data-movement ops (e.g.
+      transpose+reshape+concat) without going to shared memory after each one.
+    }];
+
+    let arguments = (
+      ins TT_Tensor:$src,
+      DenseI32ArrayAttr:$order
+    );
 
     let results = (outs TT_Tensor:$result);
 
     let assemblyFormat = "$src attr-dict `:` functional-type(operands, results)";
+
+    let hasVerifier = 1;
 }
 
 //

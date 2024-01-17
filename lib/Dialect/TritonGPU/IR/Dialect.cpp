@@ -1818,21 +1818,40 @@ struct TritonGPUInferLayoutInterface
   }
 
   LogicalResult inferTransOpEncoding(Attribute operandEncoding,
+                                     ArrayRef<int32_t> order,
                                      Attribute &resultEncoding) const override {
-    SharedEncodingAttr sharedEncoding =
-        operandEncoding.dyn_cast<SharedEncodingAttr>();
-    if (!sharedEncoding)
-      return failure();
-    SmallVector<unsigned> retOrder(sharedEncoding.getOrder().begin(),
-                                   sharedEncoding.getOrder().end());
-    std::reverse(retOrder.begin(), retOrder.end());
-    // TODO(Qingyi): Need to check whether CTAOrder should also be reversed.
-    // This is not a problem for tests where numCTAs = 1.
-    resultEncoding = SharedEncodingAttr::get(
-        getDialect()->getContext(), sharedEncoding.getVec(),
-        sharedEncoding.getPerPhase(), sharedEncoding.getMaxPhase(), retOrder,
-        sharedEncoding.getCTALayout(), sharedEncoding.getHasLeadingOffset());
-    return mlir::success();
+    auto permuteCTALayout = [&](const CTALayoutAttr &layout) {
+      // CTALayout is optional on shared encoding.
+      if (layout.getCTAsPerCGA().empty())
+        return layout;
+
+      return CTALayoutAttr::get(
+          getDialect()->getContext(),
+          applyPermutation(layout.getCTAsPerCGA(), order),
+          applyPermutation(layout.getCTASplitNum(), order),
+          applyPermutation(layout.getCTAOrder(), order));
+    };
+
+    if (auto enc = operandEncoding.dyn_cast<SharedEncodingAttr>()) {
+      resultEncoding = SharedEncodingAttr::get(
+          getDialect()->getContext(), enc.getVec(), enc.getPerPhase(),
+          enc.getMaxPhase(), applyPermutation(enc.getOrder(), order),
+          permuteCTALayout(enc.getCTALayout()), enc.getHasLeadingOffset());
+      return mlir::success();
+    }
+
+    if (auto enc = operandEncoding.dyn_cast<BlockedEncodingAttr>()) {
+      resultEncoding = BlockedEncodingAttr::get(
+          getDialect()->getContext(),
+          applyPermutation(enc.getSizePerThread(), order),
+          applyPermutation(enc.getThreadsPerWarp(), order),
+          applyPermutation(enc.getWarpsPerCTA(), order),
+          applyPermutation(enc.getOrder(), order),
+          permuteCTALayout(enc.getCTALayout()));
+      return mlir::success();
+    }
+
+    return failure(); // unhandled encoding
   }
 
   LogicalResult

@@ -75,7 +75,9 @@ public:
 
     auto newX = rewriter.create<triton::gpu::ConvertLayoutOp>(srcOp.getLoc(),
                                                               newXType, arg);
-    auto newY = rewriter.create<triton::TransOp>(tmpOp.getLoc(), newX);
+    assert(newX.getType().cast<RankedTensorType>().getRank() == 2);
+    auto newY = rewriter.create<triton::TransOp>(
+        tmpOp.getLoc(), newX, llvm::SmallVector<int>({1, 0}));
     rewriter.replaceOpWithNewOp<triton::gpu::ConvertLayoutOp>(dstOp, ZType,
                                                               newY);
     return mlir::success();
@@ -233,7 +235,9 @@ public:
 
     auto newX = rewriter.create<triton::gpu::ConvertLayoutOp>(srcOp.getLoc(),
                                                               newXType, arg);
-    rewriter.replaceOpWithNewOp<triton::TransOp>(dstOp, newX);
+    assert(newX.getType().cast<RankedTensorType>().getRank() == 2);
+    rewriter.replaceOpWithNewOp<triton::TransOp>(
+        dstOp, newX, llvm::SmallVector<int>({1, 0}));
     return mlir::success();
   }
 };

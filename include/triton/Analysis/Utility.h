@@ -353,6 +353,42 @@ std::unique_ptr<DataFlowSolver> createDataFlowSolver();
 
 triton::MakeTensorPtrOp getMakeTensorPtrOp(Value v);
 
+template <typename T>
+SmallVector<T> applyPermutation(ArrayRef<T> vec,
+                                ArrayRef<int32_t> permutation) {
+  assert(vec.size() == permutation.size());
+
+#ifndef NDEBUG
+  SmallVector<int32_t> sortedPerm(permutation);
+  llvm::sort(sortedPerm);
+  for (int i = 0; i < sortedPerm.size(); ++i) {
+    assert(sortedPerm[i] == i);
+  }
+#endif
+
+  SmallVector<T> result;
+  result.reserve(vec.size());
+  for (auto i : permutation) {
+    result.push_back(vec[i]);
+  }
+  return result;
+}
+
+// These overloads are necessary to get applyPermutation() to work without an
+// explicit cast of the operands to ArrayRef.
+inline SmallVector<int32_t> applyPermutation(ArrayRef<int32_t> vec,
+                                             ArrayRef<int32_t> permutation) {
+  return applyPermutation<int32_t>(vec, permutation);
+}
+inline SmallVector<unsigned> applyPermutation(ArrayRef<unsigned> vec,
+                                              ArrayRef<int32_t> permutation) {
+  return applyPermutation<unsigned>(vec, permutation);
+}
+inline SmallVector<int64_t> applyPermutation(ArrayRef<int64_t> vec,
+                                             ArrayRef<int32_t> permutation) {
+  return applyPermutation<int64_t>(vec, permutation);
+}
+
 } // namespace mlir
 
 #endif // TRITON_ANALYSIS_UTILITY_H

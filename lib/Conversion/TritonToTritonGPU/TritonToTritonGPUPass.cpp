@@ -361,6 +361,7 @@ struct TritonTransPattern : public OpConversionPattern<triton::TransOp> {
 
   using OpConversionPattern<triton::TransOp>::OpConversionPattern;
 
+  // TODO: Fix up.
   LogicalResult
   matchAndRewrite(triton::TransOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -388,8 +389,9 @@ struct TritonTransPattern : public OpConversionPattern<triton::TransOp> {
       src = rewriter.create<triton::gpu::ConvertLayoutOp>(src.getLoc(), srcType,
                                                           src);
     }
-    addNamedAttrs(rewriter.replaceOpWithNewOp<triton::TransOp>(op, src),
-                  adaptor.getAttributes());
+    addNamedAttrs(
+        rewriter.replaceOpWithNewOp<triton::TransOp>(op, src, op.getOrder()),
+        adaptor.getAttributes());
     return success();
   }
 };

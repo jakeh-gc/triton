@@ -4,6 +4,7 @@
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/Interfaces/FunctionImplementation.h"
 #include "mlir/Interfaces/FunctionInterfaces.h"
+#include "triton/Analysis/Utility.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "triton/Dialect/TritonGPU/IR/Attributes.h"
@@ -365,18 +366,18 @@ mlir::LogicalResult mlir::triton::TransOp::inferReturnTypes(
     SmallVectorImpl<Type> &inferredReturnTypes) {
   // type is the same as the input
   auto argTy = operands[0].getType().cast<RankedTensorType>();
-  SmallVector<int64_t> retShape(argTy.getShape().begin(),
-                                argTy.getShape().end());
-  std::reverse(retShape.begin(), retShape.end());
+  auto order = properties.as<Properties *>()->order;
+  SmallVector<int64_t> retShape = applyPermutation(argTy.getShape(), order);
+
   auto retEltTy = argTy.getElementType();
   Attribute argEncoding = argTy.getEncoding();
   Attribute retEncoding;
   if (argEncoding) {
     Dialect &dialect = argEncoding.getDialect();
     auto inferLayoutInterface = dyn_cast<DialectInferLayoutInterface>(&dialect);
-    if (inferLayoutInterface->inferTransOpEncoding(argEncoding, retEncoding)
+    if (inferLayoutInterface
+            ->inferTransOpEncoding(argEncoding, order, retEncoding)
             .failed()) {
-      llvm::report_fatal_error("failed to infer layout for ReduceOp");
       return mlir::failure();
     }
   }
@@ -1018,6 +1019,28 @@ LogicalResult triton::ExperimentalInterleaveOp::verify() {
                        "encoding, except for the last dimension, which must be "
                        "the most-minor dim.  Expected ")
              << *expectedDstEnc << ", but got " << dstEnc;
+    }
+  }
+
+  return success();
+}
+
+// TransOp
+LogicalResult triton::TransOp::verify() {
+  auto srcTy = getSrc().getType().cast<RankedTensorType>();
+  auto dstTy = getResult().getType().cast<RankedTensorType>();
+
+  ArrayRef<int32_t> order = getOrder();
+  if (order.size() != srcTy.getRank()) {
+    return emitError("order must have the same size as the rank of the "
+                     "operand and result");
+  }
+
+  SmallVector<int32_t, 8> sortedOrder(order);
+  llvm::sort(sortedOrder);
+  for (int32_t i = 0; i < sortedOrder.size(); i++) {
+    if (sortedOrder[i] != i) {
+      return emitError("order must be a permutation of [0, ..., rank - 1]");
     }
   }
 
