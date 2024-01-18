@@ -410,11 +410,13 @@ def TT_DotOp : TT_Op<"dot", [Pure,
 //
 // Reduce Op
 //
+// Hack: removed infer output layout so we can test a Reduction
+// that has an output layout not a sliced input layout. This way we could
+// avoid a convert layout after the reduction.
 def TT_ReduceOp: TT_Op<"reduce",
                        [Pure,
                         SameOperandsEncoding,
-                        SingleBlock,
-                        DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+                        SingleBlock]> {
     let summary = "Reduction using generic combination algorithm";
     let arguments = (ins Variadic<TT_Tensor>:$operands, I32Attr:$axis);
     let results = (outs Variadic<TT_Type>:$result);

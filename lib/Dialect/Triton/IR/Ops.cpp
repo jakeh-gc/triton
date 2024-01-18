@@ -507,22 +507,22 @@ void ReduceOp::build(mlir::OpBuilder &builder, mlir::OperationState &state,
   ReduceOp::build(builder, state, inferredReturnTypes, operands, axis);
 }
 
-mlir::LogicalResult mlir::triton::ReduceOp::inferReturnTypes(
-    MLIRContext *context, std::optional<Location> location, ValueRange operands,
-    DictionaryAttr attributes, OpaqueProperties properties, RegionRange regions,
-    SmallVectorImpl<Type> &inferredReturnTypes) {
-  Properties *prop = properties.as<Properties *>();
-  int axis = prop->axis.getInt();
-  for (auto arg : operands) {
-    auto argTy = arg.getType().cast<RankedTensorType>();
-    auto retEltTy = argTy.getElementType();
-    if (inferReduceReturnShape(argTy, retEltTy, axis, inferredReturnTypes)
-            .failed()) {
-      return failure();
-    }
-  }
-  return success();
-}
+// mlir::LogicalResult mlir::triton::ReduceOp::inferReturnTypes(
+//     MLIRContext *context, std::optional<Location> location, ValueRange
+//     operands, DictionaryAttr attributes, OpaqueProperties properties,
+//     RegionRange regions, SmallVectorImpl<Type> &inferredReturnTypes) {
+//   // Properties *prop = properties.as<Properties *>();
+//   // int axis = prop->axis.getInt();
+//   // for (auto arg : operands) {
+//   //   auto argTy = arg.getType().cast<RankedTensorType>();
+//   //   auto retEltTy = argTy.getElementType();
+//   //   if (inferReduceReturnShape(argTy, retEltTy, axis, inferredReturnTypes)
+//   //           .failed()) {
+//   //     return failure();
+//   //   }
+//   // }
+//   return success();
+// }
 
 mlir::LogicalResult mlir::triton::ReduceOp::verify() {
   if (this->getOperands().size() < 1) {

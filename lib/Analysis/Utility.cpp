@@ -166,7 +166,16 @@ bool ReduceOpHelper::isWarpSynchronous() {
   return triton::gpu::getWarpsPerCTAWithUniqueData(srcLayout, srcShape)[axis] ==
          1;
 }
-
+bool ReduceOpHelper::isOverride() {
+  auto srcLayout = getSrcLayout();
+  if (auto mmaLayout = srcLayout.dyn_cast<triton::gpu::MmaEncodingAttr>()) {
+    auto rank = triton::gpu::getWarpsPerCTA(mmaLayout).size();
+    if (rank == 3 && getAxis() == 0) {
+      return true;
+    }
+  }
+  return false;
+}
 SmallVector<unsigned> ReduceOpHelper::getScratchConfig() {
   SmallVector<unsigned> smemShape;
   // that case doesn't need inter-warp communication
@@ -186,6 +195,9 @@ unsigned ReduceOpHelper::getScratchSizeInBytes() {
   unsigned bytesPerElem = 0;
   for (const auto &ty : srcElementTypes) {
     bytesPerElem += ceil<unsigned>(ty.getIntOrFloatBitWidth(), 8);
+  }
+  if (isOverride()) {
+    elems += smemShape[1];
   }
   return bytesPerElem * elems;
 }

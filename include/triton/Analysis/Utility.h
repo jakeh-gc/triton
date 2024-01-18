@@ -37,7 +37,9 @@ public:
   triton::ReduceOp getOperation() { return op; }
 
   bool isReductionOnLayoutFastAxis();
-
+  // hack to tell whether we need to pad in the partial reductions and final
+  // loads
+  bool isOverride();
   unsigned getThreadOffsetOnReductionAxis();
 
   bool isWarpSynchronous();

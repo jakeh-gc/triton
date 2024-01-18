@@ -1973,7 +1973,7 @@ def test_reduce_layouts(M, N, src_layout, axis, reduce2d, dtype_str, reduce_op, 
         ^bb0(%arg3: {ty}, %arg4: {ty}):
           %17 = {arith_op} %arg3, %arg4 : {ty}
           tt.reduce.return %17 : {ty}
-        }}) {{axis = {axis} : i32}} : (tensor<4x{M}x{N}x{ty}, #src>) -> tensor<{M}x{N}x{ty}, #triton_gpu.slice<{{dim = {axis}, parent = #src}}>>
+        }}) {{axis = {axis} : i32}} : (tensor<4x{M}x{N}x{ty}, #src>) -> tensor<{M}x{N}x{ty}, #blocked>
         %25 = tt.make_range {{end = {M} : i32, start = 0 : i32}} : tensor<{M}xi32, #triton_gpu.slice<{{dim = 1, parent = #blocked}}>>
         %26 = tt.expand_dims %25 {{axis = 1 : i32}} : (tensor<{M}xi32, #triton_gpu.slice<{{dim = 1, parent = #blocked}}>>) -> tensor<{M}x1xi32, #blocked>
         %27 = arith.muli %26, %cst : tensor<{M}x1xi32, #blocked>
@@ -1982,8 +1982,7 @@ def test_reduce_layouts(M, N, src_layout, axis, reduce2d, dtype_str, reduce_op, 
         %30 = tt.broadcast %29 : (tensor<{M}x1x!tt.ptr<f32, 1>, #blocked>) -> tensor<{M}x{N}x!tt.ptr<f32, 1>, #blocked>
         %31 = tt.broadcast %177 : (tensor<1x{N}xi32, #blocked>) -> tensor<{M}x{N}xi32, #blocked>
         %32 = tt.addptr %30, %31 : tensor<{M}x{N}x!tt.ptr<f32, 1>, #blocked>, tensor<{M}x{N}xi32, #blocked>
-        %33 = triton_gpu.convert_layout %24 : (tensor<{M}x{N}x{ty}, #triton_gpu.slice<{{dim = 0, parent = #src}}>>) -> tensor<{M}x{N}x{ty}, #blocked>
-        tt.store %32, %33 {{cache = 1 : i32, evict = 1 : i32}} : tensor<{M}x{N}x{ty}, #blocked>
+        tt.store %32, %24 {{cache = 1 : i32, evict = 1 : i32}} : tensor<{M}x{N}x{ty}, #blocked>
         tt.return
         }}
         }}

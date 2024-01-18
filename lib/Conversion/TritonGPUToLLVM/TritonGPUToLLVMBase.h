@@ -525,7 +525,8 @@ public:
     auto dstElemTy = dstTy.getElementType();
     auto inOrd = triton::gpu::getOrder(srcDistributedLayout);
     auto outOrd = dstSharedLayout.getOrder();
-    unsigned inVec = inOrd == outOrd
+    // Not all dims haveto be equal, only the first dim
+    unsigned inVec = inOrd[0] == outOrd[0]
                          ? triton::gpu::getUniqueContigPerThread(
                                srcDistributedLayout, srcShape)[inOrd[0]]
                          : 1;

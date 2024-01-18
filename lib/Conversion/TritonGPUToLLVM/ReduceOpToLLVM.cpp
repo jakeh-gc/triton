@@ -407,6 +407,9 @@ private:
       writeIdx[axis] = warpIdAxis;
       Value writeOffset =
           linearize(rewriter, loc, writeIdx, smemShape, smemOrder);
+      if (helper.isOverride()) {
+        writeOffset = add(writeOffset, writeIdx[1]);
+      }
       for (unsigned i = 0; i < op.getNumOperands(); ++i) {
         auto elemPtrTy = getElementPtrType(op, i);
         Value writePtr = gep(elemPtrTy, smemBases[i], writeOffset);
@@ -441,6 +444,11 @@ private:
     Value readOffset = threadId;
     for (unsigned round = 0; round < elemsPerThread; ++round) {
       SmallVector<Value> acc(op.getNumOperands());
+      if (helper.isOverride()) {
+        if (round != 0 && round % 2 == 0 && round != elemsPerThread - 1) {
+          readOffset = add(readOffset, i32_val(1));
+        }
+      }
       for (unsigned i = 0; i < op.getNumOperands(); ++i) {
         auto elemPtrTy = getElementPtrType(op, i);
         Value readPtr = gep(elemPtrTy, smemBases[i], readOffset);
@@ -478,7 +486,6 @@ private:
                                   ConversionPatternRewriter &rewriter) const {
     triton::ReduceOp op = helper.getOperation();
     Location loc = op.getLoc();
-    auto srcLayout = helper.getSrcLayout();
     auto axis = op.getAxis();
     auto smemOrder = helper.getOrderWithAxisAtBeginning();
     SmallVector<Value> results(op.getNumOperands());
@@ -486,17 +493,20 @@ private:
       if (auto resultTy =
               op.getResult()[i].getType().dyn_cast<RankedTensorType>()) {
         // nd-tensor where n >= 1
-        auto resultLayout = resultTy.getEncoding().cast<SliceEncodingAttr>();
+        // auto resultLayout = resultTy.getEncoding().cast<SliceEncodingAttr>();
         unsigned resultElems = getTotalElemsPerThread(resultTy);
-        auto resultIndices = emitIndices(loc, rewriter, resultLayout, resultTy);
+        auto resultIndices =
+            emitIndices(loc, rewriter, resultTy.getEncoding(), resultTy);
         assert(resultIndices.size() == resultElems);
-
         SmallVector<Value> resultVals(resultElems);
         for (size_t j = 0; j < resultElems; ++j) {
           SmallVector<Value> readIdx = resultIndices[j];
           readIdx.insert(readIdx.begin() + op.getAxis(), i32_val(0));
           Value readOffset =
               linearize(rewriter, loc, readIdx, smemShape, smemOrder);
+          if (helper.isOverride()) {
+            readOffset = add(readOffset, readIdx[1]);
+          }
           Value readPtr =
               gep(getElementPtrType(op, i), smemBases[i], readOffset);
           resultVals[j] = load(readPtr);
