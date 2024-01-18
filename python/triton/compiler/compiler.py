@@ -305,7 +305,6 @@ class CompiledKernel:
         self.function = None
 
     def _init_handles(self):
-        return
         if self.module is not None:
             return
         device = driver.get_current_device()
