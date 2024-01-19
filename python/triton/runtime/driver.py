@@ -1,7 +1,9 @@
+from dataclasses import dataclass
 from ..backends import backends
 
 
 def _create_driver():
+    print('inside')
     actives = [x.driver for x in backends.values() if x.driver.is_active()]
     if len(actives) != 1:
         raise RuntimeError(f"{len(actives)} active drivers ({actives}). There should only be one.")
@@ -43,4 +45,10 @@ class LazyProxy:
         return str(self._obj)
 
 
-driver = LazyProxy(_create_driver)
+@dataclass
+class Driver:
+    active = LazyProxy(_create_driver)
+
+
+print('before')
+driver = Driver()

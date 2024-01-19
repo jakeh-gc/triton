@@ -9,6 +9,8 @@ from functools import cached_property
 from typing import Callable, Generic, Iterable, List, Optional, TypeVar, Union, cast, overload
 from ..runtime.driver import driver
 
+print('importing from jit')
+
 TRITON_MODULE = __name__[:-len(".runtime.jit")]
 
 T = TypeVar("T")
@@ -338,9 +340,9 @@ class JITFunction(KernelInterface[T]):
         assert "device" not in kwargs, "device option is deprecated; current device will be used"
         assert "stream" not in kwargs, "stream option is deprecated; current stream will be used"
         # parse options
-        device = driver.get_current_device()
-        stream = driver.get_current_stream(device)
-        target = driver.get_current_target()
+        device = driver.active.get_current_device()
+        stream = driver.active.get_current_stream(device)
+        target = driver.active.get_current_target()
         backend = make_backend(target)
         kwargs["debug"] = self.debug
         options = backend.parse_options(kwargs)
@@ -400,6 +402,7 @@ class JITFunction(KernelInterface[T]):
         kernel = self.cache[device][key]
         if not warmup:
             args = [arg.value for arg in args if not arg.param.is_constexpr]
+<<<<<<< HEAD
             metadata = kernel.metadata
             kernel.run(grid_0, grid_1, grid_2, metadata.num_warps,
                        metadata.num_ctas,  # number of warps/ctas per instance
@@ -407,6 +410,19 @@ class JITFunction(KernelInterface[T]):
                        metadata.shared, stream, kernel.function, CompiledKernel.launch_enter_hook,
                        CompiledKernel.launch_exit_hook, metadata,
                        *driver.assemble_tensormap_to_arg(metadata.tensormaps_info, args))
+||||||| parent of 0acf40fe0 (fix)
+            kernel.run(grid_0, grid_1, grid_2, kernel.num_warps, kernel.num_ctas,  # number of warps/ctas per instance
+                       kernel.cluster_dims[0], kernel.cluster_dims[1], kernel.cluster_dims[2],  # cluster
+                       kernel.shared, stream, kernel.function, CompiledKernel.launch_enter_hook,
+                       CompiledKernel.launch_exit_hook, kernel,
+                       *driver.assemble_tensormap_to_arg(kernel.metadata["tensormaps_info"], args))
+=======
+            kernel.run(grid_0, grid_1, grid_2, kernel.num_warps, kernel.num_ctas,  # number of warps/ctas per instance
+                       kernel.cluster_dims[0], kernel.cluster_dims[1], kernel.cluster_dims[2],  # cluster
+                       kernel.shared, stream, kernel.function, CompiledKernel.launch_enter_hook,
+                       CompiledKernel.launch_exit_hook, kernel,
+                       *driver.active.assemble_tensormap_to_arg(kernel.metadata["tensormaps_info"], args))
+>>>>>>> 0acf40fe0 (fix)
         return kernel
 
     def __init__(self, fn, version=None, do_not_specialize=None, debug=None, noinline=None):
